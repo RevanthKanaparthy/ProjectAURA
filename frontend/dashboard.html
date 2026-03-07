@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - College RAG Chatbot</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="dashboard-header">
+        <h1>Faculty Dashboard</h1>
+        <button onclick="logout()" class="logout-btn">Logout</button>
+    </header>
+
+    <div class="container dashboard-grid" style="max-width: 1200px;">
+        <!-- Left Column: Management -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Upload Section -->
+            <section class="panel">
+                <h3>Upload Documents</h3>
+                <p style="font-size: 0.9em; color: #666;">Supported: PDF, TXT, MD, Excel</p>
+                <div class="input-group" style="flex-direction: column;">
+                    <input type="file" id="file">
+                    <button id="upload-btn" onclick="upload()" style="width: 100%;">Upload</button>
+                </div>
+                <p id="status-msg" style="margin-top: 10px; font-size: 0.9em;"></p>
+            </section>
+
+            <!-- Document List Section -->
+            <section class="panel">
+                <h3>Manage Documents</h3>
+                <button onclick="loadDocs()" class="secondary-btn" style="width: 100%;">Refresh List</button>
+                <ul id="doc-list" class="doc-list"></ul>
+            </section>
+        </div>
+
+        <!-- Right Column: Chat -->
+        <section class="panel chat-panel">
+            <h3>Test Chatbot</h3>
+            <div id="chat-box"></div>
+            <div class="input-group">
+                <input type="text" id="chat-input" placeholder="Ask a question about the documents...">
+                <button id="send-btn">Send</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/upload.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="js/chat.js"></script>
+    <script>
+        // Protect route
+        if (!localStorage.getItem("access_token")) {
+            window.location.href = "login.html";
+        }
+        // Initial load
+        document.addEventListener("DOMContentLoaded", loadDocs);
+    </script>
+</body>
+</html>

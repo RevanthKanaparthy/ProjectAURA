@@ -6,8 +6,6 @@ psycopg2-binary
 passlib
 argon2-cffi
 python-jose
-sentence-transformers
-chromadb
 requests
 pydantic
 python-dotenv

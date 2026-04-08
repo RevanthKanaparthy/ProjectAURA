@@ -3,26 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - College RAG Chatbot</title>
+    <meta name="description" content="Faculty Login for College RAG Chatbot">
+    <title>Faculty Login - Aura Assistant</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <div class="login-wrapper">
-        <div class="container login-container">
-            <h2>Faculty Login</h2>
+        <div class="glass-panel login-container">
+            <h2>Faculty Portal</h2>
             <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" placeholder="Enter your email">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="Enter your email" required>
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" placeholder="Enter your password">
+                <input type="password" id="password" placeholder="Enter your password" required>
             </div>
-            <button onclick="login()">Login</button>
+            <button onclick="login()" style="width: 100%; margin-top: 10px;">Sign In</button>
             <p id="msg" class="error-msg"></p>
-            <p style="margin-top: 20px;"><a href="index.html" style="color: var(--primary); text-decoration: none;">&larr; Back to Chat (Guest)</a></p>
+            <p style="margin-top: 25px;">
+                <a href="index.html" style="color: var(--text-muted); text-decoration: none; font-size: 0.95rem; transition: color 0.2s;">&larr; Return to Guest Chat</a>
+            </p>
         </div>
     </div>
+    
+    <script src="js/config.js"></script>
+    <script src="js/toast.js"></script>
     <script src="js/auth.js"></script>
 </body>
 </html>

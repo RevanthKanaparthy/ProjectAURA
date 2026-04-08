@@ -1,0 +1,11 @@
+# railway.toml — Railway deployment config for AURA Chatbot Backend
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "uvicorn app:app --host 0.0.0.0 --port $PORT"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "aura-backend"

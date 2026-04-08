@@ -34,8 +34,20 @@ Thumbs.db
 logs/
 *.log
 
-# Chroma DB
+# Chroma DB (regenerated at runtime)
 chroma_db/
 
-# Storage
-storage/uploads/
+# Storage (uploaded files at runtime)
+storage/
+
+# Benchmark & evaluation artifacts
+benchmark_results/
+Report_*.xlsx
+*_eval_*.json
+mock_benchmark_*.json
+summary_*.json
+summary_*.xlsx
+faculty_qa_dataset.json
+generate_mock_results.py
+benchmark_runner.py
+analyze_results.py

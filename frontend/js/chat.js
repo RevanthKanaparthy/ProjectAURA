@@ -15,7 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function sendMessage() {
     const inputField = document.getElementById("chat-input");
-    const chatBox = document.getElementById("chat-box");
     const question = inputField.value.trim();
 
     if (!question) return;
@@ -24,24 +23,17 @@ async function sendMessage() {
     appendMessage("user", question);
     inputField.value = "";
 
-    // 2. Show Loading Indicator
+    // 2. Show Typing Indicator
     const loadingId = "loading-" + Date.now();
-    appendMessage("bot", "Thinking...", loadingId);
+    appendMessage("bot", "", loadingId, true);
 
     const token = localStorage.getItem("access_token");
-    
-    const headers = {
-        "Content-Type": "application/json"
-    };
-
-    if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-    }
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
     
     try {
         // 3. Send Request to Backend
-        // Note: Using query parameter for question as per backend logs
-        const res = await fetch(`http://127.0.0.1:8000/chat/ask?question=${encodeURIComponent(question)}`, {
+        const res = await fetch(`${API_BASE}/chat/ask?question=${encodeURIComponent(question)}`, {
             method: "POST",
             headers: headers
         });
@@ -54,25 +46,47 @@ async function sendMessage() {
         if (res.ok) {
             appendMessage("bot", data.answer || data.response || "No response received.");
         } else {
+            if (typeof showToast === "function") showToast(data.detail || "Could not fetch answer.", "error");
             appendMessage("bot", "Error: " + (data.detail || "Could not fetch answer."));
         }
 
     } catch (error) {
         console.error("Chat error:", error);
         removeMessage(loadingId);
+        if (typeof showToast === "function") showToast("Network error. Please check your connection.", "error");
         appendMessage("bot", "Network error. Please check your connection.");
     }
 }
 
-function appendMessage(sender, text, id = null) {
+function appendMessage(sender, text, id = null, isTyping = false) {
     const chatBox = document.getElementById("chat-box");
-    const msgDiv = document.createElement("div");
     
+    // Hide empty state if present
+    const emptyState = document.getElementById("chat-empty-state");
+    if (emptyState) emptyState.style.display = "none";
+
+    const msgDiv = document.createElement("div");
     msgDiv.classList.add("message", sender === "user" ? "user-message" : "bot-message");
     if (id) msgDiv.id = id;
     
-    // Simple formatting for line breaks
-    msgDiv.innerText = text;
+    if (isTyping) {
+        msgDiv.innerHTML = `
+            <div class="typing-indicator" style="background:transparent; box-shadow:none; padding:0;">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>`;
+    } else {
+        if (sender === "bot" && typeof marked !== "undefined") {
+            msgDiv.innerHTML = marked.parse(text);
+            // Apply syntax highlighting
+            msgDiv.querySelectorAll('pre code').forEach((block) => {
+                if (typeof hljs !== "undefined") hljs.highlightElement(block);
+            });
+        } else {
+            msgDiv.innerText = text;
+        }
+    }
     
     chatBox.appendChild(msgDiv);
     

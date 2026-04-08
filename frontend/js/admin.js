@@ -1,37 +1,45 @@
 async function loadDocs() {
     const token = localStorage.getItem("access_token");
     if (!token) {
-        alert("You must be logged in to view documents.");
+        if(typeof showToast === "function") showToast("You must be logged in to view documents.", "error");
         return;
     }
 
-    const res = await fetch("http://127.0.0.1:8000/admin/docs", {
-        headers: {
-            "Authorization": `Bearer ${token}`
-        }
+    const res = await fetch(`${API_BASE}/admin/docs`, {
+        headers: { "Authorization": `Bearer ${token}` }
     });
     const data = await res.json();
 
     if (res.ok) {
         const list = document.getElementById("doc-list");
-        list.innerHTML = "";
-
-        data.forEach(doc => {
-            const li = document.createElement("li");
-            li.className = "doc-list-item";
-            li.innerHTML = `<span>${doc.filename}</span>
-              <button onclick="deleteDoc(${doc.id})">Delete</button>`;
-            list.appendChild(li);
+        const emptyState = document.getElementById("doc-empty-state");
+        
+        // Clear all LI elements but preserve the empty state if it's there
+        Array.from(list.children).forEach(child => {
+            if (child.tagName.toLowerCase() === 'li') child.remove();
         });
+
+        if (data.length === 0) {
+            if (emptyState) emptyState.style.display = "flex";
+        } else {
+            if (emptyState) emptyState.style.display = "none";
+            
+            data.forEach(doc => {
+                const li = document.createElement("li");
+                li.innerHTML = `<span>${doc.filename}</span>
+                  <button onclick="deleteDoc(${doc.id})">Delete</button>`;
+                list.appendChild(li);
+            });
+        }
     } else {
-        alert(`Error loading documents: ${data.detail || "Unknown error"}`);
+        if(typeof showToast === "function") showToast(`Error loading documents: ${data.detail || "Unknown error"}`, "error");
     }
 }
 
 async function deleteDoc(id) {
     const token = localStorage.getItem("access_token");
     if (!token) {
-        alert("You must be logged in to delete documents.");
+        if(typeof showToast === "function") showToast("You must be logged in to delete documents.", "error");
         return;
     }
     
@@ -39,19 +47,17 @@ async function deleteDoc(id) {
         return;
     }
 
-    const res = await fetch(`http://127.0.0.1:8000/admin/docs/${id}`, {
+    const res = await fetch(`${API_BASE}/admin/docs/${id}`, {
         method: "DELETE",
-        headers: {
-            "Authorization": `Bearer ${token}`
-        }
+        headers: { "Authorization": `Bearer ${token}` }
     });
 
     if (res.ok) {
         const data = await res.json();
-        alert(data.message || "Document deleted");
+        if(typeof showToast === "function") showToast(data.message || "Document deleted", "success");
         loadDocs();
     } else {
         const data = await res.json();
-        alert(`Error deleting document: ${data.detail || "Unknown error"}`);
+        if(typeof showToast === "function") showToast(`Error deleting document: ${data.detail || "Unknown error"}`, "error");
     }
 }

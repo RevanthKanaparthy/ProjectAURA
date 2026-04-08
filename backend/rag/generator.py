@@ -3,7 +3,7 @@ import os
 import json
 import re
 import time
-from config import OLLAMA_URL, OLLAMA_MODEL, LLM_PROVIDER, OPENROUTER_API_KEY, OPENROUTER_MODEL, GEMINI_API_KEY, GEMINI_MODEL
+from config import OLLAMA_URL, OLLAMA_MODEL, LLM_PROVIDER, NEBIUS_API_KEY, LLM_CHAT_MODEL, GEMINI_API_KEY, GEMINI_MODEL, OPENROUTER_API_KEY, OPENROUTER_MODEL
 
 # Optional imports for external providers
 try:
@@ -23,8 +23,6 @@ def generate_answer(context: str, question: str, model_name: str = None, provide
     """
     print(f"DEBUG: Generating answer with Provider: {provider}")
     
-    # if not model_name and provider == "openrouter":
-    #     model_name = OPENROUTER_MODEL
     if not model_name and provider == "gemini":
         model_name = GEMINI_MODEL
 
@@ -36,72 +34,124 @@ def generate_answer(context: str, question: str, model_name: str = None, provide
         history_block = "Previous Conversation:\n" + "\n".join(history_lines) + "\n\n"
 
     prompt = f"""
-You are an intelligent assistant for analyzing college documents.
-Use the provided 'Context' to answer the 'Question'.
+You are an intelligent data assistant analyzing records from an Excel-based academic database.
 
-{history_block}
-Rules:
-1. **Strict Relevance:** If the user asks for a specific category (e.g., "Books"), look for matches in 'Sheet_Category' or document content. Treat "Book Chapters" as valid for "Books". Do NOT list "Journals" or "Conferences" unless requested.
-2. **Conversation:** If the input is a greeting, be polite. If the input is negative feedback (e.g., "wrong answer", "not correct"), apologize and ask the user to rephrase the query with more specific keywords.
-3. **Topic Consistency:** Ensure the answer matches the user's intent. Do not select a document just because it shares a generic word (e.g., "Explain") with the question if the specific topic is unrelated.
-4. **No Fabrication:** If the answer is NOT in the context and the input is not conversational, you MUST respond with the exact phrase: "Information not available in the provided documents."
-5. **Clarity:** Format the output as a clean list if there are multiple items.
+The database contains structured information about:
+• Faculty
+• Departments
+• Publications
+• Journals
+• Conferences
+• Books
+• Patents
+• Research work
 
-Context:
+----------------------------
+DATABASE CONTEXT
+----------------------------
 {context}
 
-Question:
+{history_block}
+----------------------------
+USER QUESTION
+----------------------------
 {question}
 
+----------------------------
+INSTRUCTIONS
+----------------------------
+1. Answer ONLY using the information present in the database context above, unless the user is just saying a simple greeting.
+2. Do NOT invent, infer, or hallucinate information that is not explicitly present.
+3. If the question asks for counts or totals: Count all relevant records in the context.
+4. If the question asks for lists: List the relevant items clearly.
+5. If the question includes filters (year, faculty, department, publication type), ensure the answer only includes matching records.
+6. If the user asks a specific question and the answer cannot be found in the provided context, respond with: "I do not have that information in the available database records."
+7. If the user input is a standard greeting (like "hi", "hello", "good morning"), respond politely and ask how you can help them search the academic database.
+8. Present the answer in a clear structured format.
+
+----------------------------
 Answer:
+----------------------------
 """
 
-    # --- OLLAMA PROVIDER (DISABLED) ---
-    # if provider == "ollama":
-    #     payload = {
-    #         "model": model_name,
-    #         "prompt": prompt,
-    #         "stream": False
-    #     }
-    #
-    #     try:
-    #         print(f"DEBUG: Sending request to Ollama ({model_name})...")
-    #         resp = requests.post(OLLAMA_URL, json=payload, timeout=600)
-    #         resp.raise_for_status()  # raises HTTPError for 4xx/5xx
-    #         data = resp.json()
-    #
-    #         # Ollama returns {"response": "..."} when stream=False
-    #         return data.get("response", "No response from model.")
-    #
-    #     except requests.exceptions.Timeout:
-    #         return "LLM service timed out. Please try again."
-    #
-    #     except requests.exceptions.ConnectionError:
-    #         return "LLM service is not reachable. Is Ollama running?"
-    #
-    #     except Exception as e:
-    #         return f"LLM service unavailable: {str(e)}"
+    if provider == "ollama":
+        if not model_name:
+            model_name = OLLAMA_MODEL
+        payload = {
+            "model": model_name,
+            "prompt": prompt,
+            "stream": False
+        }
+        try:
+            print(f"DEBUG: Sending request to Ollama ({model_name})...")
+            resp = requests.post(OLLAMA_URL, json=payload, timeout=600)
+            
+            # Gracefully handle missing models
+            if resp.status_code == 404:
+                try:
+                    err_msg = resp.json().get("error", "")
+                    if "not found" in err_msg.lower():
+                        return f"Ollama Error: Model '{model_name}' is not installed. Please open your terminal and run 'ollama pull {model_name}'."
+                except:
+                    pass
+                    
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("response", "No response from model.")
+        except Exception as e:
+            return f"Ollama Error: {str(e)}"
 
-    # --- OPENAI PROVIDER (DISABLED) ---
-    # elif provider == "openai":
-    #     if not openai:
-    #         return "Error: 'openai' library not installed."
-    #     api_key = os.getenv("OPENAI_API_KEY")
-    #     if not api_key:
-    #         return "Error: OPENAI_API_KEY not set."
-    #     
-    #     try:
-    #         client = openai.OpenAI(api_key=api_key)
-    #         response = client.chat.completions.create(
-    #             model=model_name if model_name else "gpt-4o",
-    #             messages=[{"role": "user", "content": prompt}]
-    #         )
-    #         return response.choices[0].message.content
-    #     except Exception as e:
-    #         return f"OpenAI Error: {str(e)}"
+    elif provider == "nebius":
+        if not openai:
+            return "Error: 'openai' library not installed."
+        if not NEBIUS_API_KEY:
+            return "Error: NEBIUS_API_KEY not set."
+        try:
+            client = openai.OpenAI(
+                api_key=NEBIUS_API_KEY,
+                base_url="https://api.nebius.ai/v1"
+            )
+            response = client.chat.completions.create(
+                model=model_name if model_name else LLM_CHAT_MODEL,
+                messages=[
+                    {"role": "system", "content": "Answer only using the provided context."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.0,
+                max_tokens=1024
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"Nebius Error: {str(e)}"
 
-    # --- GEMINI PROVIDER (ACTIVE) ---
-    if provider == "gemini" or True: # Force Gemini
+    elif provider == "openrouter":
+        if not openai:
+            return "Error: 'openai' library not installed."
+        if not OPENROUTER_API_KEY:
+            return "Error: OPENROUTER_API_KEY not set in your .env file."
+        try:
+            client = openai.OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=OPENROUTER_API_KEY,
+            )
+            response = client.chat.completions.create(
+                model=model_name if model_name else OPENROUTER_MODEL,
+                messages=[
+                    {"role": "system", "content": "Answer only using the provided context."},
+                    {"role": "user", "content": prompt}
+                ],
+                extra_headers={
+                    "HTTP-Referer": "http://localhost:8000",
+                    "X-Title": "College RAG Chatbot",
+                }
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            if "429" in str(e):
+                return "Error: The AI model is currently busy (Rate Limit). Please try again in a few seconds."
+            return f"OpenRouter Error: {str(e)}"
+
+    elif provider == "gemini":
         if not genai:
             return "Error: 'google-genai' library not installed."
         if not GEMINI_API_KEY:
@@ -127,36 +177,9 @@ Answer:
         except Exception as e:
             return f"Gemini Error: {str(e)}"
 
-    # --- OPENROUTER PROVIDER (COMMENTED OUT) ---
-    # elif provider == "openrouter":
-    #     if not openai:
-    #         return "Error: 'openai' library not installed."
-    #     if not OPENROUTER_API_KEY:
-    #         return "Error: OPENROUTER_API_KEY not set."
-    #     
-    #     try:
-    #         client = openai.OpenAI(
-    #             base_url="https://openrouter.ai/api/v1",
-    #             api_key=OPENROUTER_API_KEY,
-    #         )
-    #         response = client.chat.completions.create(
-    #             model=model_name,
-    #             messages=[{"role": "user", "content": prompt}],
-    #             extra_headers={
-    #                 "HTTP-Referer": "http://localhost:8000",
-    #                 "X-Title": "College RAG Chatbot",
-    #             }
-    #         )
-    #         return response.choices[0].message.content
-    #     except Exception as e:
-    #         print(f"OpenRouter API Error: {e}")
-    #         if "429" in str(e):
-    #             return "Error: The AI model is currently busy (Rate Limit). Please try again in a few seconds."
-    #         return f"OpenRouter Error: {str(e)}"
-
     return f"Error: Unknown provider '{provider}'"
 
-def extract_metadata_from_text(text: str, model_name: str = None) -> dict:
+def extract_metadata_from_text(text: str, model_name: str = None, provider: str = LLM_PROVIDER) -> dict:
     """
     Uses the LLM to extract 'themes' and 'entities' from a text chunk.
     Returns a dictionary: {"themes": [...], "entities": [...]}
@@ -164,10 +187,6 @@ def extract_metadata_from_text(text: str, model_name: str = None) -> dict:
     # Optimization: Skip extraction for very short texts (like greetings)
     if len(text.strip().split()) < 3:
         return {"themes": [], "entities": []}
-
-    if not model_name:
-        # Force default to Gemini model
-        model_name = GEMINI_MODEL
 
     prompt = f"""
     Analyze the following text and extract key 'themes' (broad topics) and 'entities' (specific names, places, organizations).
@@ -177,8 +196,42 @@ def extract_metadata_from_text(text: str, model_name: str = None) -> dict:
     {text} 
     """
     
-    # --- GEMINI EXTRACTION (ACTIVE) ---
-    if True: # Force Gemini
+    if provider == "ollama":
+        if not model_name:
+            model_name = OLLAMA_MODEL
+        payload = {
+            "model": model_name,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json"
+        }
+        try:
+            resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
+            
+            # Gracefully handle missing models
+            if resp.status_code == 404:
+                try:
+                    err_msg = resp.json().get("error", "")
+                    if "not found" in err_msg.lower():
+                        print(f"Extraction Error: Model '{model_name}' not found. Run 'ollama pull {model_name}'.")
+                        return {"themes": [], "entities": []}
+                except:
+                    pass
+                    
+            resp.raise_for_status()
+            data = resp.json()
+            response_text = data.get("response", "{}").strip()
+            match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if match:
+                response_text = match.group(0)
+            return json.loads(response_text)
+        except Exception as e:
+            print(f"Extraction Error (Ollama): {e}")
+            return {"themes": [], "entities": []}
+
+    elif provider == "gemini":
+        if not model_name:
+            model_name = GEMINI_MODEL
         if not genai or not GEMINI_API_KEY:
             return {"themes": [], "entities": []}
         try:
@@ -197,48 +250,23 @@ def extract_metadata_from_text(text: str, model_name: str = None) -> dict:
             print(f"Extraction Error (Gemini): {e}")
             return {"themes": [], "entities": []}
 
-    # --- OPENROUTER EXTRACTION (COMMENTED OUT) ---
-    # if True: # Force OpenRouter
-    #     if not openai or not OPENROUTER_API_KEY:
-    #         return {"themes": [], "entities": []}
-    #     try:
-    #         client = openai.OpenAI(
-    #             base_url="https://openrouter.ai/api/v1",
-    #             api_key=OPENROUTER_API_KEY,
-    #         )
-    #         response = client.chat.completions.create(
-    #             model=model_name,
-    #             messages=[{"role": "user", "content": prompt}]
-    #         )
-    #         response_text = response.choices[0].message.content
-    #         match = re.search(r'\{.*\}', response_text, re.DOTALL)
-    #         if match:
-    #             response_text = match.group(0)
-    #         return json.loads(response_text)
-    #     except Exception as e:
-    #         print(f"Extraction Error (OpenRouter): {e}")
-    #         return {"themes": [], "entities": []}
-
-    # payload = {
-    #     "model": model_name,
-    #     "prompt": prompt,
-    #     "stream": False,
-    #     "format": "json" # Force Ollama to output JSON
-    # }
-
-    # try:
-    #     resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
-    #     resp.raise_for_status()
-    #     data = resp.json()
-        
-    #     response_text = data.get("response", "{}").strip()
-        
-    #     # Robust JSON extraction using regex (handles markdown blocks and extra text)
-    #     match = re.search(r'\{.*\}', response_text, re.DOTALL)
-    #     if match:
-    #         response_text = match.group(0)
-            
-    #     return json.loads(response_text)
-    # except Exception as e:
-    #     print(f"Extraction Error: {e}")
-    #     return {"themes": [], "entities": []}
+    elif provider == "openrouter":
+        if not openai or not OPENROUTER_API_KEY:
+            return {"themes": [], "entities": []}
+        try:
+            client = openai.OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=OPENROUTER_API_KEY,
+            )
+            response = client.chat.completions.create(
+                model=model_name if model_name else OPENROUTER_MODEL,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            response_text = response.choices[0].message.content
+            match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if match:
+                response_text = match.group(0)
+            return json.loads(response_text)
+        except Exception as e:
+            print(f"Extraction Error (OpenRouter): {e}")
+            return {"themes": [], "entities": []}

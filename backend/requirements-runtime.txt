@@ -1,3 +1,2 @@
 sentence-transformers
 chromadb
-torch

@@ -16,3 +16,4 @@ pandas
 google-genai
 rank-bm25
 langchain-text-splitters
+torch

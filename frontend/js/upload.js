@@ -52,7 +52,7 @@ async function upload() {
             }
         });
 
-        const data = await res.json();
+        const data = await parseApiResponse(res);
 
         if (res.ok) {
             if (statusMsg) {

@@ -1,0 +1,20 @@
+[build]
+  publish = "frontend"
+
+[functions]
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/login"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/dashboard"
+  to = "/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/chat"
+  to = "/index.html"
+  status = 200

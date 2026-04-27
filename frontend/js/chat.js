@@ -38,7 +38,7 @@ async function sendMessage() {
             headers: headers
         });
 
-        const data = await res.json();
+        const data = await parseApiResponse(res);
 
         // 4. Remove Loading and Add Bot Response
         removeMessage(loadingId);
@@ -46,8 +46,9 @@ async function sendMessage() {
         if (res.ok) {
             appendMessage("bot", data.answer || data.response || "No response received.");
         } else {
-            if (typeof showToast === "function") showToast(data.detail || "Could not fetch answer.", "error");
-            appendMessage("bot", "Error: " + (data.detail || "Could not fetch answer."));
+            const message = data.detail || data.message || "Could not fetch answer.";
+            if (typeof showToast === "function") showToast(message, "error");
+            appendMessage("bot", "Error: " + message);
         }
 
     } catch (error) {

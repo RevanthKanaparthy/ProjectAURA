@@ -8,7 +8,7 @@ async function loadDocs() {
     const res = await fetch(`${API_BASE}/admin/docs`, {
         headers: { "Authorization": `Bearer ${token}` }
     });
-    const data = await res.json();
+    const data = await parseApiResponse(res);
 
     if (res.ok) {
         const list = document.getElementById("doc-list");
@@ -53,11 +53,11 @@ async function deleteDoc(id) {
     });
 
     if (res.ok) {
-        const data = await res.json();
+        const data = await parseApiResponse(res);
         if(typeof showToast === "function") showToast(data.message || "Document deleted", "success");
         loadDocs();
     } else {
-        const data = await res.json();
+        const data = await parseApiResponse(res);
         if(typeof showToast === "function") showToast(`Error deleting document: ${data.detail || "Unknown error"}`, "error");
     }
 }
